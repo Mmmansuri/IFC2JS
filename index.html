@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IFC Structure Viewer</title>
+    <title>Structural Optimization Viewer</title>
     <style>
         * {
             margin: 0;
@@ -20,6 +20,11 @@
             overflow-x: hidden;
         }
 
+        body.fullscreen-mode {
+            overflow: hidden;
+        }
+
+        /* Animated starry background */
         .stars-container {
             position: fixed;
             top: 0;
@@ -47,6 +52,7 @@
             100% { transform: translate(-100px, 100px); }
         }
 
+        /* Navigation */
         nav {
             background: rgba(30, 58, 138, 0.85);
             backdrop-filter: blur(10px);
@@ -54,6 +60,10 @@
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+
+        body.fullscreen-mode nav {
+            display: none;
         }
         
         .nav-container {
@@ -89,7 +99,23 @@
         .nav-menu li a:hover {
             background: rgba(255,255,255,0.1);
         }
+        
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            padding: 10px;
+        }
+        
+        .hamburger span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            margin: 3px 0;
+            transition: 0.3s;
+        }
 
+        /* Main Container */
         .page-wrapper {
             max-width: 1800px;
             margin: 0 auto;
@@ -98,6 +124,13 @@
             z-index: 1;
         }
 
+        body.fullscreen-mode .page-wrapper {
+            padding: 0;
+            max-width: 100%;
+            margin: 0;
+        }
+
+        /* Canvas Container - Full Width */
         .canvas-wrapper {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 10px;
@@ -108,12 +141,24 @@
             margin-bottom: 30px;
             position: relative;
         }
+
+        body.fullscreen-mode .canvas-wrapper {
+            border-radius: 0;
+            border: none;
+            margin-bottom: 0;
+            box-shadow: none;
+        }
         
         #container {
             width: 100%;
             height: 900px;
             position: relative;
             background: #f8fafc;
+        }
+
+        body.fullscreen-mode #container {
+            height: 100vh;
+            width: 100vw;
         }
 
         #container.dark-canvas {
@@ -126,17 +171,28 @@
             height: 100%;
         }
 
+        /* Canvas Background Toggle */
         .canvas-bg-toggle {
             position: absolute;
             top: 20px;
             right: 20px;
             z-index: 10;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #3b82f6;
             border-radius: 12px;
-            padding: 12px 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 15px 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #container.dark-canvas .canvas-bg-toggle {
+            background: rgba(30, 30, 30, 0.95);
+            border-color: #60a5fa;
+        }
+
+        .toggle-row {
             display: flex;
             align-items: center;
             gap: 12px;
@@ -146,115 +202,26 @@
             color: #1e293b;
             font-weight: 600;
             font-size: 13px;
+            min-width: 85px;
         }
 
         #container.dark-canvas .canvas-bg-label {
             color: white;
         }
 
+        /* Layers Panel - Inside Canvas */
         .layers-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 10;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            width: 280px;
-            max-height: 800px;
-            overflow-y: auto;
+            display: none;
         }
 
-        #container.dark-canvas .layers-panel {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .layers-panel h3 {
-            color: #1e3a8a;
-            margin-bottom: 15px;
-            font-size: 18px;
-            border-bottom: 2px solid #3b82f6;
-            padding-bottom: 8px;
-        }
-
-        #container.dark-canvas .layers-panel h3 {
-            color: #93c5fd;
-        }
-        
-        .layer-item {
-            display: flex;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(229, 231, 235, 0.3);
-        }
-        
-        .toggle-switch {
-            position: relative;
-            width: 50px;
-            height: 24px;
-            margin-right: 12px;
-            flex-shrink: 0;
-        }
-        
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(203, 213, 225, 0.5);
-            transition: .4s;
-            border-radius: 24px;
-        }
-        
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        
-        input:checked + .slider {
-            background-color: #3b82f6;
-        }
-        
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-        
-        .layer-label {
-            font-size: 14px;
-            color: #374151;
-            font-weight: 500;
-        }
-
-        #container.dark-canvas .layer-label {
-            color: #e5e7eb;
-        }
-
+        /* View Controls Overlay - Right Bottom with Glassmorphism */
         #controls {
             position: absolute;
             bottom: 20px;
             right: 20px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: #1e293b;
             padding: 15px;
             border-radius: 12px;
@@ -265,8 +232,8 @@
         }
 
         #container.dark-canvas #controls {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
         
         #controls h4 {
@@ -301,6 +268,26 @@
             color: #cbd5e1;
         }
 
+        /* Scrollbar for layers panel */
+        .layers-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .layers-panel::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        .layers-panel::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 10px;
+        }
+
+        .layers-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.7);
+        }
+
+        /* About Section */
         .about-section {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 10px;
@@ -308,6 +295,10 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.2);
             margin-bottom: 30px;
             backdrop-filter: blur(10px);
+        }
+
+        body.fullscreen-mode .about-section {
+            display: none;
         }
         
         .about-section h3 {
@@ -352,39 +343,7 @@
             font-weight: bold;
         }
 
-        .loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .loading-content {
-            text-align: center;
-            color: white;
-        }
-
-        .loading-spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid white;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
+        /* Footer */
         footer {
             background: rgba(30, 58, 138, 0.85);
             backdrop-filter: blur(10px);
@@ -392,6 +351,10 @@
             padding: 40px 20px 20px;
             margin-top: 50px;
             box-shadow: 0 -2px 20px rgba(0,0,0,0.3);
+        }
+
+        body.fullscreen-mode footer {
+            display: none;
         }
         
         .footer-content {
@@ -437,81 +400,160 @@
             font-size: 14px;
         }
 
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            #container {
+                height: 800px;
+            }
+
+            .project-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .layers-panel {
+                width: 200px;
+            }
+        }
+        
         @media (max-width: 768px) {
+            .nav-menu {
+                position: fixed;
+                left: -100%;
+                top: 60px;
+                flex-direction: column;
+                background: rgba(30, 58, 138, 0.95);
+                width: 100%;
+                text-align: center;
+                transition: 0.3s;
+                box-shadow: 0 10px 27px rgba(0,0,0,0.05);
+            }
+            
+            .nav-menu.active {
+                left: 0;
+            }
+            
+            .nav-menu li {
+                margin: 0;
+            }
+            
+            .hamburger {
+                display: flex;
+            }
+            
             #container {
                 height: 600px;
             }
             
+            .footer-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .project-stats {
+                grid-template-columns: 1fr;
+            }
+
             .layers-panel {
-                width: 220px;
+                width: 180px;
                 max-height: 500px;
+            }
+
+            .canvas-bg-toggle {
+                top: 15px;
+                right: 15px;
+                padding: 10px 16px;
+            }
+
+            #controls {
+                max-width: 200px;
+                padding: 12px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .page-wrapper {
+                padding: 15px 10px;
+            }
+            
+            .about-section {
+                padding: 15px;
+            }
+            
+            #container {
+                height: 500px;
+            }
+            
+            #controls {
+                font-size: 10px;
+                padding: 10px;
+                max-width: 180px;
+            }
+            
+            .control-label {
+                min-width: 60px;
+            }
+
+            .layers-panel {
+                width: 160px;
+                padding: 15px;
+                max-height: 400px;
+            }
+
+            .layers-panel h3 {
+                font-size: 16px;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Starry background -->
     <div class="stars-container" id="starsContainer"></div>
 
+    <!-- Navigation -->
     <nav>
         <div class="nav-container">
-            <div class="logo">IFC Viewer</div>
-            <ul class="nav-menu">
+            <div class="logo">StructureView</div>
+            <ul class="nav-menu" id="navMenu">
                 <li><a href="#home">Home</a></li>
                 <li><a href="#projects">Projects</a></li>
+                <li><a href="#analysis">Analysis</a></li>
                 <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
             </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
         </div>
     </nav>
 
+    <!-- Main Content -->
     <div class="page-wrapper">
+        <!-- Canvas with Layers Inside -->
         <div class="canvas-wrapper">
             <div id="container">
-                <div class="loading-overlay" id="loadingOverlay">
-                    <div class="loading-content">
-                        <div class="loading-spinner"></div>
-                        <div>Loading IFC Model...</div>
-                    </div>
-                </div>
-
+                <!-- Canvas Background Toggle -->
                 <div class="canvas-bg-toggle">
-                    <span class="canvas-bg-label">Canvas BG</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="canvasBgToggle" onchange="toggleCanvasBackground()">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="layers-panel">
-                    <h3>Layers</h3>
-                    <div id="layersList">
-                        <div class="layer-item">
-                            <label class="toggle-switch">
-                                <input type="checkbox" checked onchange="toggleLayer('columns')">
-                                <span class="slider"></span>
-                            </label>
-                            <span class="layer-label">Columns (4)</span>
-                        </div>
-
-                        <div class="layer-item">
-                            <label class="toggle-switch">
-                                <input type="checkbox" checked onchange="toggleLayer('beams')">
-                                <span class="slider"></span>
-                            </label>
-                            <span class="layer-label">Beams (4)</span>
-                        </div>
-
-                        <div class="layer-item">
-                            <label class="toggle-switch">
-                                <input type="checkbox" checked onchange="toggleLayer('grid')">
-                                <span class="slider"></span>
-                            </label>
-                            <span class="layer-label">Grid</span>
-                        </div>
+                    <div class="toggle-row">
+                        <span class="canvas-bg-label">Canvas BG</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="canvasBgToggle" onchange="toggleCanvasBackground()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <span class="canvas-bg-label">Fullscreen</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="fullscreenToggle" onchange="toggleFullscreen()">
+                            <span class="slider"></span>
+                        </label>
                     </div>
                 </div>
 
                 <canvas id="canvas"></canvas>
                 
+                <!-- View Controls -->
                 <div id="controls">
                     <h4>View Controls</h4>
                     <div class="control-item">
@@ -524,521 +566,234 @@
                         <span class="control-label">Zoom:</span> Mouse Scroll
                     </div>
                     <div class="control-item">
-                        <span class="control-label">Navigate:</span> WASD / Arrows
-                    </div>
-                    <div class="control-item">
-                        <span class="control-label">Vertical:</span> Space / Shift
+                        <span class="control-label">Navigate:</span> Arrow Keys
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- About Section with Stats -->
         <div class="about-section">
-            <h3>IFC Structure Analysis</h3>
-            <p>This visualization is generated directly from the IFC file (021010.ifc). The structure contains 4 columns and 4 beams forming a rectangular frame with ST37-Ry1.2 steel material. The model is extracted and rendered in real-time using the IFC data, showing the exact positions, dimensions, and profiles specified in the BIM model.</p>
+            <h3>About This Project</h3>
+            <p>This structural optimization analysis demonstrates a comprehensive 3-story concrete building with optimized column sizing based on stress distribution and load capacity. The color-coded elements provide visual indicators of structural efficiency, allowing engineers to quickly identify areas of high stress and optimization opportunities. This advanced visualization combines structural analysis with real-time 3D rendering to facilitate better decision-making in construction planning.</p>
             
             <div class="project-stats">
                 <div class="stat-card">
                     <div class="stat-label">Material</div>
-                    <div class="stat-value">ST37-Ry1.2</div>
+                    <div class="stat-value">Concrete</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Columns</div>
-                    <div class="stat-value">4</div>
+                    <div class="stat-label">Area</div>
+                    <div class="stat-value">22,000 m²</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Beams</div>
-                    <div class="stat-value">4</div>
+                    <div class="stat-label">Cost Reduction</div>
+                    <div class="stat-value">$250,000</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Column Profile</div>
-                    <div class="stat-value">I-400x350</div>
+                    <div class="stat-label">Before Optimization</div>
+                    <div class="stat-value">1,350 tons</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Beam Profile</div>
-                    <div class="stat-value">I-330x350</div>
+                    <div class="stat-label">After Optimization</div>
+                    <div class="stat-value">1,100 tons</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Frame Height</div>
-                    <div class="stat-value">3.55m</div>
+                    <div class="stat-label">Material Saved</div>
+                    <div class="stat-value">18.5%</div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Footer -->
     <footer>
         <div class="footer-content">
             <div class="footer-section">
-                <h4>About</h4>
+                <h4>Company</h4>
                 <ul>
                     <li><a href="#about">About Us</a></li>
-                    <li><a href="#contact">Contact</a></li>
+                    <li><a href="#team">Our Team</a></li>
+                    <li><a href="#careers">Careers</a></li>
+                    <li><a href="#press">Press</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Services</h4>
+                <ul>
+                    <li><a href="#optimization">Structural Optimization</a></li>
+                    <li><a href="#analysis">Analysis Tools</a></li>
+                    <li><a href="#consulting">Consulting</a></li>
+                    <li><a href="#training">Training</a></li>
                 </ul>
             </div>
             <div class="footer-section">
                 <h4>Resources</h4>
                 <ul>
                     <li><a href="#docs">Documentation</a></li>
+                    <li><a href="#api">API</a></li>
                     <li><a href="#support">Support</a></li>
+                    <li><a href="#faq">FAQ</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Contact</h4>
+                <ul>
+                    <li><a href="mailto:info@structureview.com">info@structureview.com</a></li>
+                    <li><a href="tel:+1234567890">+1 (234) 567-890</a></li>
+                    <li>123 Engineering Blvd</li>
+                    <li>San Francisco, CA 94105</li>
                 </ul>
             </div>
         </div>
         <div class="footer-bottom">
-            <p>&copy; 2025 IFC Viewer. All rights reserved.</p>
+            <p>&copy; 2025 StructureView. All rights reserved. | <a href="#privacy">Privacy Policy</a> | <a href="#terms">Terms of Service</a></p>
         </div>
     </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // IFC Data extracted from file - Real dimensions from IFCISHAPEPROFILEDEF
-        let ifcData = {
+        // ============================================
+        // STRUCTURAL DATA DEFINITION
+        // ============================================
+        
+        // Global coordinate system origin at (0, 0, 0)
+        
+        // Define element colors
+        const ELEMENT_COLORS = {
+            COLUMN: 0x4CAF50,      // Green
+            BEAM: 0x2196F3,        // Blue
+            BRACE: 0xFF9800,       // Orange
+            WALL: 0xBDBDBD,        // Gray (transparent)
+            SLAB: 0x9E9E9E,        // Dark Gray (transparent)
+            SUPPORT: 0xFF0000      // Red
+        };
+
+        // Cross-section definitions
+        const CROSS_SECTIONS = {
+            RECTANGULAR_300x400: { type: 'rectangular', width: 0.3, height: 0.4 },
+            RECTANGULAR_400x500: { type: 'rectangular', width: 0.4, height: 0.5 },
+            RECTANGULAR_250x300: { type: 'rectangular', width: 0.25, height: 0.3 },
+            CIRCULAR_400: { type: 'circular', diameter: 0.4 },
+            CIRCULAR_500: { type: 'circular', diameter: 0.5 },
+            CIRCULAR_300: { type: 'circular', diameter: 0.3 },
+            I_SECTION_200: { type: 'i-beam', height: 0.2, width: 0.1, webThickness: 0.01, flangeThickness: 0.015 },
+            I_SECTION_300: { type: 'i-beam', height: 0.3, width: 0.15, webThickness: 0.012, flangeThickness: 0.018 }
+        };
+
+        // Structural elements data
+        const structuralData = {
+            // Columns (start point, end point, cross-section, local rotation angle in degrees)
             columns: [
-                { 
-                    id: '56', 
-                    start: [0, 0, 0.25], 
-                    end: [0, 0, 3.80], 
-                    profile: { 
-                        type: 'I-SHAPE',
-                        overallWidth: 0.40,
-                        overallDepth: 0.39,
-                        webThickness: 0.012,
-                        flangeThickness: 0.020,
-                        filletRadius: 0.0
-                    } 
-                },
-                { 
-                    id: '60', 
-                    start: [0, 5.0, 0.25], 
-                    end: [0, 5.0, 3.80], 
-                    profile: { 
-                        type: 'I-SHAPE',
-                        overallWidth: 0.40,
-                        overallDepth: 0.39,
-                        webThickness: 0.012,
-                        flangeThickness: 0.020,
-                        filletRadius: 0.0
-                    } 
-                },
-                { 
-                    id: '64', 
-                    start: [6.0, 0, 0.25], 
-                    end: [6.0, 0, 3.80], 
-                    profile: { 
-                        type: 'I-SHAPE',
-                        overallWidth: 0.40,
-                        overallDepth: 0.39,
-                        webThickness: 0.012,
-                        flangeThickness: 0.020,
-                        filletRadius: 0.0
-                    } 
-                },
-                { 
-                    id: '68', 
-                    start: [6.0, 5.0, 0.25], 
-                    end: [6.0, 5.0, 3.80], 
-                    profile: { 
-                        type: 'I-SHAPE',
-                        overallWidth: 0.40,
-                        overallDepth: 0.39,
-                        webThickness: 0.012,
-                        flangeThickness: 0.020,
-                        filletRadius: 0.0
-                    } 
-                }
+                { id: 'C1', start: [0, 0, 0], end: [0, 4, 0], section: 'CIRCULAR_400', rotation: 0 },
+                { id: 'C2', start: [6, 0, 0], end: [6, 4, 0], section: 'CIRCULAR_500', rotation: 0 },
+                { id: 'C3', start: [12, 0, 0], end: [12, 4, 0], section: 'CIRCULAR_400', rotation: 0 },
+                { id: 'C4', start: [0, 0, 6], end: [0, 4, 6], section: 'RECTANGULAR_300x400', rotation: 0 },
+                { id: 'C5', start: [6, 0, 6], end: [6, 4, 6], section: 'RECTANGULAR_400x500', rotation: 0 },
+                { id: 'C6', start: [12, 0, 6], end: [12, 4, 6], section: 'RECTANGULAR_300x400', rotation: 0 },
+                { id: 'C7', start: [0, 0, 12], end: [0, 4, 12], section: 'CIRCULAR_300', rotation: 0 },
+                { id: 'C8', start: [6, 0, 12], end: [6, 4, 12], section: 'CIRCULAR_400', rotation: 0 },
+                { id: 'C9', start: [12, 0, 12], end: [12, 4, 12], section: 'CIRCULAR_300', rotation: 0 },
+                // Second floor columns
+                { id: 'C10', start: [0, 4, 0], end: [0, 8, 0], section: 'CIRCULAR_300', rotation: 0 },
+                { id: 'C11', start: [6, 4, 0], end: [6, 8, 0], section: 'CIRCULAR_400', rotation: 0 },
+                { id: 'C12', start: [12, 4, 0], end: [12, 8, 0], section: 'CIRCULAR_300', rotation: 0 },
+                { id: 'C13', start: [0, 4, 6], end: [0, 8, 6], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'C14', start: [6, 4, 6], end: [6, 8, 6], section: 'RECTANGULAR_300x400', rotation: 0 },
+                { id: 'C15', start: [12, 4, 6], end: [12, 8, 6], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'C16', start: [0, 4, 12], end: [0, 8, 12], section: 'CIRCULAR_300', rotation: 0 },
+                { id: 'C17', start: [6, 4, 12], end: [6, 8, 12], section: 'CIRCULAR_300', rotation: 0 },
+                { id: 'C18', start: [12, 4, 12], end: [12, 8, 12], section: 'CIRCULAR_300', rotation: 0 }
             ],
+
+            // Beams (start point, end point, cross-section, local rotation angle in degrees)
             beams: [
-                { 
-                    id: '5', 
-                    start: [0, 5.0, 3.80], 
-                    end: [0, 0, 3.80], 
-                    profile: { 
-                        type: 'I-SHAPE',
-                        overallWidth: 0.33,
-                        overallDepth: 0.38,
-                        webThickness: 0.010,
-                        flangeThickness: 0.015,
-                        filletRadius: 0.0
-                    } 
-                },
-                { 
-                    id: '6', 
-                    start: [0, 0, 3.80], 
-                    end: [6.0, 0, 3.80], 
-                    profile: { 
-                        type: 'I-SHAPE',
-                        overallWidth: 0.33,
-                        overallDepth: 0.38,
-                        webThickness: 0.010,
-                        flangeThickness: 0.015,
-                        filletRadius: 0.0
-                    } 
-                },
-                { 
-                    id: '7', 
-                    start: [6.0, 0, 3.80], 
-                    end: [6.0, 5.0, 3.80], 
-                    profile: { 
-                        type: 'I-SHAPE',
-                        overallWidth: 0.33,
-                        overallDepth: 0.38,
-                        webThickness: 0.010,
-                        flangeThickness: 0.015,
-                        filletRadius: 0.0
-                    } 
-                },
-                { 
-                    id: '8', 
-                    start: [6.0, 5.0, 3.80], 
-                    end: [0, 5.0, 3.80], 
-                    profile: { 
-                        type: 'I-SHAPE',
-                        overallWidth: 0.33,
-                        overallDepth: 0.38,
-                        webThickness: 0.010,
-                        flangeThickness: 0.015,
-                        filletRadius: 0.0
-                    } 
-                }
+                // Ground floor beams
+                { id: 'B1', start: [0, 4, 0], end: [6, 4, 0], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B2', start: [6, 4, 0], end: [12, 4, 0], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B3', start: [0, 4, 6], end: [6, 4, 6], section: 'RECTANGULAR_300x400', rotation: 0 },
+                { id: 'B4', start: [6, 4, 6], end: [12, 4, 6], section: 'RECTANGULAR_300x400', rotation: 0 },
+                { id: 'B5', start: [0, 4, 12], end: [6, 4, 12], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B6', start: [6, 4, 12], end: [12, 4, 12], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B7', start: [0, 4, 0], end: [0, 4, 6], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B8', start: [0, 4, 6], end: [0, 4, 12], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B9', start: [6, 4, 0], end: [6, 4, 6], section: 'I_SECTION_300', rotation: 0 },
+                { id: 'B10', start: [6, 4, 6], end: [6, 4, 12], section: 'I_SECTION_300', rotation: 0 },
+                { id: 'B11', start: [12, 4, 0], end: [12, 4, 6], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B12', start: [12, 4, 6], end: [12, 4, 12], section: 'RECTANGULAR_250x300', rotation: 0 },
+                // Second floor beams
+                { id: 'B13', start: [0, 8, 0], end: [6, 8, 0], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B14', start: [6, 8, 0], end: [12, 8, 0], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B15', start: [0, 8, 6], end: [6, 8, 6], section: 'I_SECTION_200', rotation: 0 },
+                { id: 'B16', start: [6, 8, 6], end: [12, 8, 6], section: 'I_SECTION_200', rotation: 0 },
+                { id: 'B17', start: [0, 8, 12], end: [6, 8, 12], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B18', start: [6, 8, 12], end: [12, 8, 12], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B19', start: [0, 8, 0], end: [0, 8, 6], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B20', start: [0, 8, 6], end: [0, 8, 12], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B21', start: [6, 8, 0], end: [6, 8, 6], section: 'I_SECTION_200', rotation: 0 },
+                { id: 'B22', start: [6, 8, 6], end: [6, 8, 12], section: 'I_SECTION_200', rotation: 0 },
+                { id: 'B23', start: [12, 8, 0], end: [12, 8, 6], section: 'RECTANGULAR_250x300', rotation: 0 },
+                { id: 'B24', start: [12, 8, 6], end: [12, 8, 12], section: 'RECTANGULAR_250x300', rotation: 0 }
+            ],
+
+            // Braces (start point, end point, cross-section, local rotation angle in degrees)
+            braces: [
+                { id: 'BR1', start: [0, 0, 0], end: [6, 4, 6], section: 'CIRCULAR_300', rotation: 0 },
+                { id: 'BR2', start: [6, 0, 0], end: [12, 4, 6], section: 'CIRCULAR_300', rotation: 0 },
+                { id: 'BR3', start: [0, 4, 0], end: [6, 8, 6], section: 'CIRCULAR_300', rotation: 0 },
+                { id: 'BR4', start: [6, 4, 0], end: [12, 8, 6], section: 'CIRCULAR_300', rotation: 0 }
+            ],
+
+            // Slabs (defined by corner points)
+            slabs: [
+                { id: 'S1', points: [[0, 0, 0], [12, 0, 0], [12, 0, 12], [0, 0, 12]], thickness: 0.2 },
+                { id: 'S2', points: [[0, 4, 0], [12, 4, 0], [12, 4, 12], [0, 4, 12]], thickness: 0.2 },
+                { id: 'S3', points: [[0, 8, 0], [12, 8, 0], [12, 8, 12], [0, 8, 12]], thickness: 0.2 }
+            ],
+
+            // Walls (defined by corner points, with thickness)
+            walls: [
+                { id: 'W1', points: [[0, 0, 0], [12, 0, 0], [12, 8, 0], [0, 8, 0]], thickness: 0.2 },
+                { id: 'W2', points: [[0, 0, 12], [12, 0, 12], [12, 8, 12], [0, 8, 12]], thickness: 0.2 },
+                { id: 'W3', points: [[0, 0, 0], [0, 0, 12], [0, 8, 12], [0, 8, 0]], thickness: 0.2 },
+                { id: 'W4', points: [[12, 0, 0], [12, 0, 12], [12, 8, 12], [12, 8, 0]], thickness: 0.2 }
+            ],
+
+            // Supports (point location, type: 'fixed', 'pinned', 'roller')
+            supports: [
+                { id: 'SUP1', location: [0, 0, 0], type: 'fixed' },
+                { id: 'SUP2', location: [6, 0, 0], type: 'pinned' },
+                { id: 'SUP3', location: [12, 0, 0], type: 'fixed' },
+                { id: 'SUP4', location: [0, 0, 6], type: 'pinned' },
+                { id: 'SUP5', location: [6, 0, 6], type: 'pinned' },
+                { id: 'SUP6', location: [12, 0, 6], type: 'pinned' },
+                { id: 'SUP7', location: [0, 0, 12], type: 'fixed' },
+                { id: 'SUP8', location: [6, 0, 12], type: 'pinned' },
+                { id: 'SUP9', location: [12, 0, 12], type: 'fixed' }
             ]
         };
 
-        let scene, camera, renderer;
-        let structure;
-        let columnsGroup, beamsGroup, gridHelper;
-        let mouseX = 0, mouseY = 0;
-        let targetRotationX = 0, targetRotationY = 0;
-        let isDragging = false;
-        let isPanning = false;
-        let cameraTarget = new THREE.Vector3(3, 2, 2.5);
-        let cameraPan = new THREE.Vector3(3, 2, 2.5);
-        
-        let keys = {};
-        let moveSpeed = 0.1;
-        let verticalSpeed = 0.1;
-        let canvasHasFocus = false;
+        // ============================================
+        // INITIALIZATION AND SETUP
+        // ============================================
 
-        // IFC Parser
-        async function loadAndParseIFC() {
-            try {
-                console.log('Attempting to load model.ifc...');
-                const response = await fetch('model.ifc');
-                console.log('Fetch response status:', response.status);
-                
-                if (!response.ok) {
-                    throw new Error(`IFC file not found (status: ${response.status})`);
-                }
-                
-                const ifcText = await response.text();
-                console.log('IFC file loaded, length:', ifcText.length);
-                console.log('First 200 chars:', ifcText.substring(0, 200));
-                
-                const entities = parseIFCFile(ifcText);
-                console.log('Parsed entities count:', Object.keys(entities).length);
-                
-                const parsedData = extractStructuralData(entities);
-                console.log('Extracted columns:', parsedData.columns.length);
-                console.log('Extracted beams:', parsedData.beams.length);
-                
-                if (parsedData.columns.length > 0 || parsedData.beams.length > 0) {
-                    console.log('Using parsed IFC data!');
-                    ifcData = parsedData;
-                    updateUI();
-                } else {
-                    console.warn('No structural elements found in IFC, using default data');
-                }
-                
-            } catch (error) {
-                console.error('Error loading model.ifc:', error);
-                console.log('Using default hardcoded data');
+        // Fullscreen Toggle Function
+        function toggleFullscreen() {
+            const body = document.body;
+            const toggle = document.getElementById('fullscreenToggle');
+            
+            if (toggle.checked) {
+                body.classList.add('fullscreen-mode');
+            } else {
+                body.classList.remove('fullscreen-mode');
             }
             
-            hideLoading();
-            init();
+            setTimeout(() => {
+                onWindowResize();
+            }, 100);
         }
 
-        function parseIFCFile(ifcText) {
-            const entities = {};
-            const lines = ifcText.split('\n');
-            
-            for (const line of lines) {
-                const match = line.match(/#(\d+)=(\w+)\((.*)\);?/);
-                if (match) {
-                    const [, id, type, params] = match;
-                    entities[id] = { id, type, params: parseParams(params), raw: line };
-                }
-            }
-            
-            return entities;
-        }
-
-        function parseParams(paramString) {
-            const params = [];
-            let current = '';
-            let depth = 0;
-            let inString = false;
-            
-            for (let i = 0; i < paramString.length; i++) {
-                const char = paramString[i];
-                
-                if (char === "'" && paramString[i-1] !== '\\') {
-                    inString = !inString;
-                    current += char;
-                } else if (inString) {
-                    current += char;
-                } else if (char === '(') {
-                    depth++;
-                    current += char;
-                } else if (char === ')') {
-                    depth--;
-                    current += char;
-                } else if (char === ',' && depth === 0) {
-                    params.push(current.trim());
-                    current = '';
-                } else {
-                    current += char;
-                }
-            }
-            
-            if (current.trim()) {
-                params.push(current.trim());
-            }
-            
-            return params;
-        }
-
-        function extractStructuralData(entities) {
-            const columns = [];
-            const beams = [];
-            
-            console.log('Starting structural data extraction...');
-            
-            for (const id in entities) {
-                const entity = entities[id];
-                
-                if (entity.type === 'IFCCOLUMNSTANDARDCASE' || entity.type === 'IFCCOLUMN') {
-                    console.log('Found column entity:', entity.type, 'ID:', id);
-                    const columnData = extractElementData(entity, entities, 'column');
-                    if (columnData) {
-                        columns.push(columnData);
-                        console.log('Successfully extracted column:', columnData.id);
-                    } else {
-                        console.warn('Failed to extract column data for ID:', id);
-                    }
-                }
-                
-                if (entity.type === 'IFCBEAMSTANDARDCASE' || entity.type === 'IFCBEAM') {
-                    console.log('Found beam entity:', entity.type, 'ID:', id);
-                    const beamData = extractElementData(entity, entities, 'beam');
-                    if (beamData) {
-                        beams.push(beamData);
-                        console.log('Successfully extracted beam:', beamData.id);
-                    } else {
-                        console.warn('Failed to extract beam data for ID:', id);
-                    }
-                }
-            }
-            
-            console.log('Extraction complete. Columns:', columns.length, 'Beams:', beams.length);
-            return { columns, beams };
-        }
-
-        function extractElementData(element, entities, type) {
-            try {
-                console.log(`Extracting ${type} data for element:`, element.id);
-                console.log('Element params:', element.params);
-                
-                const nameMatch = element.params[2]?.match(/'([^']+)'/);
-                const name = nameMatch ? nameMatch[1] : element.id;
-                console.log('Element name:', name);
-                
-                // Try different parameter positions for placement (params 4, 5, or 6)
-                let placementRef = element.params[5]?.match(/#(\d+)/)?.[1];
-                if (!placementRef) placementRef = element.params[4]?.match(/#(\d+)/)?.[1];
-                if (!placementRef) placementRef = element.params[6]?.match(/#(\d+)/)?.[1];
-                
-                // Try different parameter positions for shape (params 5, 6, or 7)
-                let shapeRef = element.params[6]?.match(/#(\d+)/)?.[1];
-                if (!shapeRef) shapeRef = element.params[5]?.match(/#(\d+)/)?.[1];
-                if (!shapeRef) shapeRef = element.params[7]?.match(/#(\d+)/)?.[1];
-                
-                console.log('Placement ref:', placementRef, 'Shape ref:', shapeRef);
-                
-                if (!placementRef || !shapeRef) {
-                    console.warn('Missing placement or shape reference');
-                    return null;
-                }
-                
-                const placement = entities[placementRef];
-                const shape = entities[shapeRef];
-                
-                if (!placement || !shape) {
-                    console.warn('Placement or shape entity not found');
-                    return null;
-                }
-                
-                console.log('Placement type:', placement.type);
-                console.log('Shape type:', shape.type);
-                
-                const axisRef = placement.params[1]?.match(/#(\d+)/)?.[1];
-                if (!axisRef) {
-                    console.warn('No axis reference in placement');
-                    return null;
-                }
-                
-                const axis = entities[axisRef];
-                if (!axis) {
-                    console.warn('Axis entity not found');
-                    return null;
-                }
-                
-                console.log('Axis type:', axis.type);
-                
-                const originRef = axis.params[0]?.match(/#(\d+)/)?.[1];
-                const directionRef = axis.params[1]?.match(/#(\d+)/)?.[1];
-                
-                if (!originRef || !directionRef) {
-                    console.warn('Missing origin or direction reference');
-                    return null;
-                }
-                
-                const origin = entities[originRef];
-                const direction = entities[directionRef];
-                
-                if (!origin || !direction) {
-                    console.warn('Origin or direction entity not found');
-                    return null;
-                }
-                
-                const originCoords = parseCoordinates(origin.params);
-                const directionVec = parseCoordinates(direction.params);
-                
-                console.log('Origin coords:', originCoords);
-                console.log('Direction vec:', directionVec);
-                
-                const representations = shape.params[3]?.match(/#(\d+)/g) || [];
-                let extrudeLength = 0;
-                let profile = null;
-                
-                console.log('Representations:', representations.length);
-                
-                for (const repRef of representations) {
-                    const rep = entities[repRef.substring(1)];
-                    if (!rep) continue;
-                    
-                    console.log('Representation type:', rep.type);
-                    
-                    const items = rep.params[3]?.match(/#(\d+)/g) || [];
-                    console.log('Items in representation:', items.length);
-                    
-                    for (const itemRef of items) {
-                        const item = entities[itemRef.substring(1)];
-                        if (!item) continue;
-                        
-                        console.log('Item type:', item.type);
-                        
-                        if (item.type === 'IFCEXTRUDEDAREASOLID') {
-                            console.log('Found IFCEXTRUDEDAREASOLID!');
-                            console.log('Item params:', item.params);
-                            
-                            extrudeLength = parseFloat(item.params[3]) / 100;
-                            console.log('Extrude length:', extrudeLength);
-                            
-                            const profileRef = item.params[0]?.match(/#(\d+)/)?.[1];
-                            if (profileRef) {
-                                profile = parseProfile(entities[profileRef]);
-                                console.log('Profile:', profile);
-                            }
-                        }
-                    }
-                }
-                
-                if (!profile || extrudeLength === 0) {
-                    console.warn('Missing profile or zero extrude length. Profile:', profile, 'Length:', extrudeLength);
-                    return null;
-                }
-                
-                const start = [
-                    originCoords[0] / 100,
-                    originCoords[1] / 100,
-                    originCoords[2] / 100
-                ];
-                
-                const end = [
-                    start[0] + (directionVec[0] * extrudeLength),
-                    start[1] + (directionVec[1] * extrudeLength),
-                    start[2] + (directionVec[2] * extrudeLength)
-                ];
-                
-                console.log('Final start:', start);
-                console.log('Final end:', end);
-                
-                return {
-                    id: name,
-                    start: start,
-                    end: end,
-                    profile: profile
-                };
-                
-            } catch (error) {
-                console.error('Error extracting element data:', error);
-                return null;
-            }
-        }
-
-        function parseProfile(profileEntity) {
-            if (profileEntity && profileEntity.type === 'IFCISHAPEPROFILEDEF') {
-                const profileName = profileEntity.params[1]?.match(/'([^']+)'/)?.[1] || '';
-                
-                return {
-                    type: 'I-SHAPE',
-                    name: profileName,
-                    overallWidth: parseFloat(profileEntity.params[3]) / 100,
-                    overallDepth: parseFloat(profileEntity.params[4]) / 100,
-                    webThickness: parseFloat(profileEntity.params[5]) / 100,
-                    flangeThickness: parseFloat(profileEntity.params[6]) / 100,
-                    filletRadius: 0
-                };
-            }
-            return null;
-        }
-
-        function parseCoordinates(params) {
-            const coords = params[0]?.match(/\(([\d\.\-E\+,]+)\)/)?.[1];
-            if (!coords) return [0, 0, 0];
-            return coords.split(',').map(v => parseFloat(v));
-        }
-
-        function updateUI() {
-            const layersList = document.getElementById('layersList');
-            layersList.innerHTML = `
-                <div class="layer-item">
-                    <label class="toggle-switch">
-                        <input type="checkbox" checked onchange="toggleLayer('columns')">
-                        <span class="slider"></span>
-                    </label>
-                    <span class="layer-label">Columns (${ifcData.columns.length})</span>
-                </div>
-                <div class="layer-item">
-                    <label class="toggle-switch">
-                        <input type="checkbox" checked onchange="toggleLayer('beams')">
-                        <span class="slider"></span>
-                    </label>
-                    <span class="layer-label">Beams (${ifcData.beams.length})</span>
-                </div>
-                <div class="layer-item">
-                    <label class="toggle-switch">
-                        <input type="checkbox" checked onchange="toggleLayer('grid')">
-                        <span class="slider"></span>
-                    </label>
-                    <span class="layer-label">Grid</span>
-                </div>
-            `;
-        }
-
-        function hideLoading() {
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
-
+        // Canvas Background Toggle Function
         function toggleCanvasBackground() {
             const container = document.getElementById('container');
             const toggle = document.getElementById('canvasBgToggle');
@@ -1052,6 +807,7 @@
             }
         }
 
+        // Create animated moving stars background
         function createStars() {
             const container = document.getElementById('starsContainer');
             const numStars = 200;
@@ -1078,6 +834,32 @@
 
         createStars();
 
+        // Mobile menu toggle
+        const hamburger = document.getElementById('hamburger');
+        const navMenu = document.getElementById('navMenu');
+        
+        hamburger.addEventListener('click', () => {
+            navMenu.classList.toggle('active');
+        });
+
+        // ============================================
+        // THREE.JS SCENE SETUP
+        // ============================================
+
+        let scene, camera, renderer;
+        let structure;
+        let mouseX = 0, mouseY = 0;
+        let targetRotationX = 0, targetRotationY = 0;
+        let isDragging = false;
+        let isPanning = false;
+        let cameraTarget = new THREE.Vector3(6, 4, 6);
+        let cameraPan = new THREE.Vector3(6, 4, 6);
+        
+        let keys = {};
+        let moveSpeed = 0.3;
+        let verticalSpeed = 0.2;
+        let canvasHasFocus = false;
+
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf8fafc);
@@ -1087,11 +869,10 @@
             camera = new THREE.PerspectiveCamera(
                 50,
                 container.clientWidth / container.clientHeight,
-                0.1,
+                1,
                 1000
             );
-            camera.position.set(12, 12, 8);
-            camera.up.set(0, 0, 1);
+            camera.position.set(25, 15, 25);
             camera.lookAt(cameraTarget);
 
             const canvas = document.getElementById('canvas');
@@ -1103,15 +884,16 @@
             scene.add(ambientLight);
 
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(10, 15, 10);
+            directionalLight.position.set(20, 30, 20);
             scene.add(directionalLight);
 
             const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
-            directionalLight2.position.set(-10, 10, -10);
+            directionalLight2.position.set(-20, 20, -20);
             scene.add(directionalLight2);
 
-            createStructureFromIFC();
+            createStructureFromData();
 
+            // Canvas focus management
             canvas.addEventListener('mouseenter', () => {
                 canvasHasFocus = true;
             });
@@ -1137,127 +919,308 @@
             animate();
         }
 
-        function createIBeamShape(profile) {
-            const shape = new THREE.Shape();
-            
-            const hw = profile.overallWidth / 2;
-            const hd = profile.overallDepth / 2;
-            const wt = profile.webThickness / 2;
-            const ft = profile.flangeThickness;
-            
-            shape.moveTo(-hw, -hd);
-            shape.lineTo(hw, -hd);
-            shape.lineTo(hw, -hd + ft);
-            shape.lineTo(wt, -hd + ft);
-            
-            shape.lineTo(wt, hd - ft);
-            
-            shape.lineTo(hw, hd - ft);
-            shape.lineTo(hw, hd);
-            shape.lineTo(-hw, hd);
-            shape.lineTo(-hw, hd - ft);
-            shape.lineTo(-wt, hd - ft);
-            
-            shape.lineTo(-wt, -hd + ft);
-            shape.lineTo(-hw, -hd + ft);
-            shape.lineTo(-hw, -hd);
-            
-            return shape;
-        }
+        // ============================================
+        // ELEMENT CREATION FUNCTIONS
+        // ============================================
 
-        function createStructureFromIFC() {
+        function createStructureFromData() {
             structure = new THREE.Group();
-            columnsGroup = new THREE.Group();
-            beamsGroup = new THREE.Group();
 
-            ifcData.columns.forEach((col) => {
-                const start = new THREE.Vector3(col.start[0], col.start[1], col.start[2]);
-                const end = new THREE.Vector3(col.end[0], col.end[1], col.end[2]);
-                const length = start.distanceTo(end);
-                
-                const iShape = createIBeamShape(col.profile);
-                
-                const extrudeSettings = {
-                    depth: length,
-                    bevelEnabled: false
-                };
-                
-                const geometry = new THREE.ExtrudeGeometry(iShape, extrudeSettings);
-                
-                const columnMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x2196F3,
-                    shininess: 30
-                });
-                const column = new THREE.Mesh(geometry, columnMaterial);
-                
-                column.position.copy(start);
-                
-                const direction = new THREE.Vector3().subVectors(end, start).normalize();
-                
-                const defaultDirection = new THREE.Vector3(0, 0, 1);
-                const quaternion = new THREE.Quaternion();
-                quaternion.setFromUnitVectors(defaultDirection, direction);
-                column.setRotationFromQuaternion(quaternion);
-                
-                columnsGroup.add(column);
-            });
-
-            ifcData.beams.forEach((beam) => {
-                const start = new THREE.Vector3(beam.start[0], beam.start[1], beam.start[2]);
-                const end = new THREE.Vector3(beam.end[0], beam.end[1], beam.end[2]);
-                const length = start.distanceTo(end);
-                
-                const iShape = createIBeamShape(beam.profile);
-                
-                const extrudeSettings = {
-                    depth: length,
-                    bevelEnabled: false
-                };
-                
-                const geometry = new THREE.ExtrudeGeometry(iShape, extrudeSettings);
-                
-                const beamMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xFF9800,
-                    shininess: 30
-                });
-                const beamMesh = new THREE.Mesh(geometry, beamMaterial);
-                
-                beamMesh.position.copy(start);
-                
-                const direction = new THREE.Vector3().subVectors(end, start).normalize();
-                
-                const defaultDirection = new THREE.Vector3(0, 0, 1);
-                const quaternion = new THREE.Quaternion();
-                quaternion.setFromUnitVectors(defaultDirection, direction);
-                beamMesh.setRotationFromQuaternion(quaternion);
-                
-                beamsGroup.add(beamMesh);
-            });
-
-            gridHelper = new THREE.GridHelper(20, 40, 0x888888, 0xcccccc);
-            gridHelper.rotation.x = Math.PI / 2;
-            gridHelper.position.set(3, 2.5, 0);
-
-            structure.add(columnsGroup);
-            structure.add(beamsGroup);
+            // Create grid at height 0
+            const gridHelper = new THREE.GridHelper(40, 40, 0x888888, 0xcccccc);
+            gridHelper.position.set(6, 0, 6);
             structure.add(gridHelper);
+
+            // Create global axes
+            const axesHelper = new THREE.AxesHelper(5);
+            structure.add(axesHelper);
+
+            // Create supports
+            structuralData.supports.forEach(support => {
+                createSupport(support);
+            });
+
+            // Create columns
+            structuralData.columns.forEach(column => {
+                createColumn(column);
+            });
+
+            // Create beams
+            structuralData.beams.forEach(beam => {
+                createBeam(beam);
+            });
+
+            // Create braces
+            structuralData.braces.forEach(brace => {
+                createBrace(brace);
+            });
+
+            // Create slabs
+            structuralData.slabs.forEach(slab => {
+                createSlab(slab);
+            });
+
+            // Create walls
+            structuralData.walls.forEach(wall => {
+                createWall(wall);
+            });
 
             scene.add(structure);
         }
 
-        function toggleLayer(layerName) {
-            switch(layerName) {
-                case 'columns':
-                    columnsGroup.visible = !columnsGroup.visible;
-                    break;
-                case 'beams':
-                    beamsGroup.visible = !beamsGroup.visible;
-                    break;
-                case 'grid':
-                    gridHelper.visible = !gridHelper.visible;
-                    break;
+        function createColumn(columnData) {
+            const start = new THREE.Vector3(...columnData.start);
+            const end = new THREE.Vector3(...columnData.end);
+            const section = CROSS_SECTIONS[columnData.section];
+            
+            const direction = new THREE.Vector3().subVectors(end, start);
+            const length = direction.length();
+            const midpoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+
+            let geometry;
+            if (section.type === 'circular') {
+                geometry = new THREE.CylinderGeometry(section.diameter / 2, section.diameter / 2, length, 8);
+            } else if (section.type === 'rectangular') {
+                geometry = new THREE.BoxGeometry(section.width, length, section.height);
             }
+
+            const material = new THREE.MeshPhongMaterial({
+                color: ELEMENT_COLORS.COLUMN,
+                shininess: 30
+            });
+
+            const column = new THREE.Mesh(geometry, material);
+            column.position.copy(midpoint);
+
+            // Align column with direction vector
+            const quaternion = new THREE.Quaternion();
+            quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+            column.setRotationFromQuaternion(quaternion);
+
+            // Apply local rotation if specified
+            if (columnData.rotation !== 0) {
+                column.rotateY((columnData.rotation * Math.PI) / 180);
+            }
+
+            structure.add(column);
         }
+
+        function createBeam(beamData) {
+            const start = new THREE.Vector3(...beamData.start);
+            const end = new THREE.Vector3(...beamData.end);
+            const section = CROSS_SECTIONS[beamData.section];
+            
+            const direction = new THREE.Vector3().subVectors(end, start);
+            const length = direction.length();
+            const midpoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+
+            let geometry;
+            if (section.type === 'rectangular') {
+                geometry = new THREE.BoxGeometry(section.width, section.height, length);
+            } else if (section.type === 'i-beam') {
+                // Simplified I-beam as a box
+                geometry = new THREE.BoxGeometry(section.width, section.height, length);
+            }
+
+            const material = new THREE.MeshPhongMaterial({
+                color: ELEMENT_COLORS.BEAM,
+                shininess: 30
+            });
+
+            const beam = new THREE.Mesh(geometry, material);
+            beam.position.copy(midpoint);
+
+            // Determine beam orientation
+            const horizontal = Math.abs(direction.y) < 0.01;
+            if (horizontal) {
+                if (Math.abs(direction.x) > 0.01) {
+                    // Beam along X-axis
+                    beam.rotation.y = Math.PI / 2;
+                }
+                // Beam along Z-axis needs no rotation for BoxGeometry with dimensions arranged correctly
+            }
+
+            // Apply local rotation if specified
+            if (beamData.rotation !== 0) {
+                beam.rotateZ((beamData.rotation * Math.PI) / 180);
+            }
+
+            structure.add(beam);
+        }
+
+        function createBrace(braceData) {
+            const start = new THREE.Vector3(...braceData.start);
+            const end = new THREE.Vector3(...braceData.end);
+            const section = CROSS_SECTIONS[braceData.section];
+            
+            const direction = new THREE.Vector3().subVectors(end, start);
+            const length = direction.length();
+            const midpoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+
+            let geometry;
+            if (section.type === 'circular') {
+                geometry = new THREE.CylinderGeometry(section.diameter / 2, section.diameter / 2, length, 8);
+            }
+
+            const material = new THREE.MeshPhongMaterial({
+                color: ELEMENT_COLORS.BRACE,
+                shininess: 30
+            });
+
+            const brace = new THREE.Mesh(geometry, material);
+            brace.position.copy(midpoint);
+
+            // Align brace with direction vector
+            const quaternion = new THREE.Quaternion();
+            quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+            brace.setRotationFromQuaternion(quaternion);
+
+            structure.add(brace);
+        }
+
+        function createSlab(slabData) {
+            const points = slabData.points.map(p => new THREE.Vector3(...p));
+            
+            // Calculate dimensions
+            const width = points[1].distanceTo(points[0]);
+            const depth = points[2].distanceTo(points[1]);
+            
+            // Calculate center
+            const center = new THREE.Vector3();
+            points.forEach(p => center.add(p));
+            center.divideScalar(points.length);
+
+            const geometry = new THREE.BoxGeometry(width, slabData.thickness, depth);
+            const material = new THREE.MeshPhongMaterial({
+                color: ELEMENT_COLORS.SLAB,
+                transparent: true,
+                opacity: 0.6,
+                shininess: 30
+            });
+
+            const slab = new THREE.Mesh(geometry, material);
+            slab.position.copy(center);
+
+            structure.add(slab);
+        }
+
+        function createWall(wallData) {
+            const points = wallData.points.map(p => new THREE.Vector3(...p));
+            
+            // Calculate dimensions
+            const width = points[1].distanceTo(points[0]);
+            const height = points[2].y - points[0].y;
+            
+            // Calculate center
+            const center = new THREE.Vector3();
+            points.forEach(p => center.add(p));
+            center.divideScalar(points.length);
+
+            // Determine orientation
+            const isAlongX = Math.abs(points[1].x - points[0].x) > 0.01;
+            
+            const geometry = isAlongX ? 
+                new THREE.BoxGeometry(width, height, wallData.thickness) :
+                new THREE.BoxGeometry(wallData.thickness, height, width);
+
+            const material = new THREE.MeshPhongMaterial({
+                color: ELEMENT_COLORS.WALL,
+                transparent: true,
+                opacity: 0.4,
+                side: THREE.DoubleSide,
+                shininess: 20
+            });
+
+            const wall = new THREE.Mesh(geometry, material);
+            wall.position.copy(center);
+
+            structure.add(wall);
+        }
+
+        function createSupport(supportData) {
+            const position = new THREE.Vector3(...supportData.location);
+            const group = new THREE.Group();
+
+            if (supportData.type === 'fixed') {
+                // Fixed support - represented by a pyramid/cone
+                const geometry = new THREE.ConeGeometry(0.3, 0.6, 4);
+                const material = new THREE.MeshPhongMaterial({
+                    color: ELEMENT_COLORS.SUPPORT,
+                    shininess: 30
+                });
+                const cone = new THREE.Mesh(geometry, material);
+                cone.rotation.x = Math.PI;
+                cone.position.y = -0.3;
+                group.add(cone);
+
+                // Add base plate
+                const plateGeom = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 8);
+                const plate = new THREE.Mesh(plateGeom, material);
+                plate.position.y = -0.65;
+                group.add(plate);
+
+            } else if (supportData.type === 'pinned') {
+                // Pinned support - represented by a triangle
+                const shape = new THREE.Shape();
+                shape.moveTo(0, 0);
+                shape.lineTo(-0.3, -0.5);
+                shape.lineTo(0.3, -0.5);
+                shape.lineTo(0, 0);
+
+                const extrudeSettings = { depth: 0.1, bevelEnabled: false };
+                const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                const material = new THREE.MeshPhongMaterial({
+                    color: ELEMENT_COLORS.SUPPORT,
+                    shininess: 30
+                });
+                const triangle = new THREE.Mesh(geometry, material);
+                triangle.position.z = -0.05;
+                group.add(triangle);
+
+                // Add circle at top
+                const circleGeom = new THREE.SphereGeometry(0.15, 16, 16);
+                const circle = new THREE.Mesh(circleGeom, material);
+                circle.position.y = 0;
+                group.add(circle);
+
+            } else if (supportData.type === 'roller') {
+                // Roller support - triangle with rollers
+                const shape = new THREE.Shape();
+                shape.moveTo(0, 0);
+                shape.lineTo(-0.3, -0.5);
+                shape.lineTo(0.3, -0.5);
+                shape.lineTo(0, 0);
+
+                const extrudeSettings = { depth: 0.1, bevelEnabled: false };
+                const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                const material = new THREE.MeshPhongMaterial({
+                    color: ELEMENT_COLORS.SUPPORT,
+                    shininess: 30
+                });
+                const triangle = new THREE.Mesh(geometry, material);
+                triangle.position.z = -0.05;
+                group.add(triangle);
+
+                // Add rollers
+                const rollerGeom = new THREE.CylinderGeometry(0.1, 0.1, 0.15, 16);
+                const roller1 = new THREE.Mesh(rollerGeom, material);
+                roller1.position.set(-0.15, -0.6, 0);
+                roller1.rotation.z = Math.PI / 2;
+                group.add(roller1);
+
+                const roller2 = new THREE.Mesh(rollerGeom, material);
+                roller2.position.set(0.15, -0.6, 0);
+                roller2.rotation.z = Math.PI / 2;
+                group.add(roller2);
+            }
+
+            group.position.copy(position);
+            structure.add(group);
+        }
+
+        // ============================================
+        // INTERACTION HANDLERS
+        // ============================================
 
         function onMouseDown(e) {
             if (e.button === 0) {
@@ -1285,7 +1248,7 @@
                 const deltaX = e.clientX - mouseX;
                 const deltaY = e.clientY - mouseY;
                 
-                const panSpeed = 0.02;
+                const panSpeed = 0.05;
                 
                 const cameraDirection = new THREE.Vector3();
                 camera.getWorldDirection(cameraDirection);
@@ -1326,15 +1289,15 @@
             raycaster.setFromCamera(mouse, camera);
             
             const zoomDirection = raycaster.ray.direction.clone();
-            const zoomAmount = e.deltaY > 0 ? 0.5 : -0.5;
+            const zoomAmount = e.deltaY > 0 ? 2 : -2;
             
             camera.position.addScaledVector(zoomDirection, zoomAmount);
             cameraTarget.addScaledVector(zoomDirection, zoomAmount);
             cameraPan.copy(cameraTarget);
             
             const distance = camera.position.length();
-            if (distance < 2) {
-                camera.position.normalize().multiplyScalar(2);
+            if (distance < 5) {
+                camera.position.normalize().multiplyScalar(5);
             }
         }
 
@@ -1387,15 +1350,6 @@
                 cameraTarget.addScaledVector(right, moveSpeed);
             }
 
-            if (keys[' '] || keys['space']) {
-                camera.position.y += verticalSpeed;
-                cameraTarget.y += verticalSpeed;
-            }
-            if (keys['shift'] || keys['shiftleft'] || keys['shiftright']) {
-                camera.position.y -= verticalSpeed;
-                cameraTarget.y -= verticalSpeed;
-            }
-
             cameraPan.copy(cameraTarget);
         }
 
@@ -1419,12 +1373,12 @@
             
             camera.lookAt(cameraTarget);
 
-            structure.rotation.y += 0.002;
+            structure.rotation.y += 0.001;
 
             renderer.render(scene, camera);
         }
 
-        loadAndParseIFC();
+        init();
     </script>
 </body>
 </html>
